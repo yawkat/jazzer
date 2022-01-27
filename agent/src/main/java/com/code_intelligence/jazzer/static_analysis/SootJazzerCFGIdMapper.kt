@@ -87,7 +87,10 @@ fun <E> DefaultDirectedGraph<Unit, E>.simplify() {
         }
 }
 
-object SootJazzerCFGIdMapper {
+class SootJazzerCFGIdMapper {
+    private val outputGraph = DefaultDirectedGraph<Unit, DefaultEdge>(DefaultEdge::class.java)
+    private val visited = mutableSetOf<Unit>()
+
     /**
      * Traverses ICFG using Depth First Search and provides a pruned graph.
      *
@@ -98,17 +101,15 @@ object SootJazzerCFGIdMapper {
      */
     private fun getJazzerIds(
         icfg: JimpleBasedInterproceduralCFG,
-        m: SootMethod,
-        outputGraph: DefaultDirectedGraph<Unit, DefaultEdge>
-    ): MutableList<Unit> {
-        val visited: MutableList<Unit> = ArrayList()
+        m: SootMethod
+    ) {
         val stackToBeProcessed = Stack<Unit>()
         stackToBeProcessed.addAll(icfg.getStartPointsOf(m))
 
         var fromUnit: Unit
         var succSrc: Unit
 
-        // while we have unvisited nodes
+        //while we have unvisited nodes
         while (stackToBeProcessed.isNotEmpty()) {
 
             // pop elem from the stack
@@ -150,7 +151,7 @@ object SootJazzerCFGIdMapper {
                         outputGraph.forceAddEdge(currentUnit, startPoint)
                     }
 
-                    visited.addAll(getJazzerIds(icfg, method, outputGraph))
+                    getJazzerIds(icfg, method)
 
                     // mark return node of the function as source for new edges
                     fromUnit = visited.last()
@@ -168,7 +169,6 @@ object SootJazzerCFGIdMapper {
                 }
             }
         }
-        return visited
     }
 
     /**
@@ -191,9 +191,8 @@ object SootJazzerCFGIdMapper {
         if (Scene.v().entryPoints.isNotEmpty()) {
             for (entryPoint in Scene.v().entryPoints) {
                 println("INFO: Visiting entry point: ${entryPoint.signature}")
-
-                val outputGraph = DefaultDirectedGraph<Unit, DefaultEdge>(DefaultEdge::class.java)
-                getJazzerIds(icfg, entryPoint, outputGraph)
+                
+                getJazzerIds(icfg, entryPoint)
 
                 outputGraph.simplify()
                 val exporter = DOTExporter<Unit, DefaultEdge> { v -> "\"${v.uniqueString()}\"" }
